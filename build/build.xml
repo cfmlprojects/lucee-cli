@@ -1,0 +1,37 @@
+<project name="distro.build" default="build" basedir="./" xmlns:antcontrib="antlib:net.sf.antcontrib">
+
+	<loadproperties srcfile="build.properties" />
+	<import file="${cfdistro.build.file}" />
+	<import file="build-cli.xml" />
+	<property name="maven.repo.local" value="${cfdistro.basedir}/artifacts" />
+	<property name="rpm.repo" value="${maven.repo.local}/RPMS/noarch" />
+	<property name="dep.repo" value="${maven.repo.local}/debs/noarch" />
+
+	<target name="build" depends="build.cli">
+	</target>
+
+	<target name="build.testwar" depends="resolve.libs, cfdistro.build">
+		<dependency groupId="org.mxunit" artifactId="core"
+			version="${mxunit.version}" mapping="/mxunit" />
+		<mapping virtual="/cfml" physical="@src.dir@/cfml" />
+		<mapping virtual="/tests" physical="@src.dir@/../tests" />
+	</target>
+
+	<target name="test">
+		<server-run>
+			<mxunit-rundirs basePath="${tests.dir}"
+				baseComponentPath="tests" outputdir="${dist.dir}/testresults/"
+				failonerror="true" />
+		</server-run>
+	</target>
+
+	<target name="build.test" depends="build.testwar">
+		<server-run>
+			<mxunit-rundirs basePath="${tests.dir}"
+				baseComponentPath="tests" outputdir="${dist.dir}/testresults/"
+				failonerror="true" />
+		</server-run>
+	</target>
+
+
+</project>

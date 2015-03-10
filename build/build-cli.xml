@@ -1,0 +1,407 @@
+<project name="build-cli" default="build.cli" xmlns:antcontrib="antlib:net.sf.antcontrib" basedir=".">
+
+	<!-- define these in say ${user.home}/creds/cfmlprojects.properties and import them prior, if ya wanna sign-->
+ 	<property name="cfmlprojects.sign.key.passphrase" value="" />
+ 	<property name="cfmlprojects.sign.key.id" value="" />
+ 	<property name="cfmlprojects.sign.keyring" value="" />
+
+	<property name="lucee.lib.dir" value="${lib.dir}/cfengine" />
+
+	<target name="resolve.libs">
+		<delete dir="${lib.dir}"/>
+ 		<mvn-repo id="jboss.repo" url="http://repository.jboss.org/nexus/content/repositories/releases" />
+		<!-- 
+		<dependency groupId="org.jboss.aesh" artifactId="aesh" unzip="false" version="0.53" type="jar" dest="${lib.dir}" repoId="jboss.repo" />
+		<dependency groupId="org.jboss.jreadline" artifactId="jreadline"
+			unzip="false" version="0.20" type="jar" dest="${lib.dir}" repoId="jboss.repo">
+			<exclusions>
+				<exclusion groupId="org.fusesource.jansi" artifactId="jansi" />
+			</exclusions>
+		</dependency>
+		<dependency groupId="org.fusesource.jansi" artifactId="jansi" unzip="false" version="1.11" type="jar" dest="${lib.dir}" />
+		 -->
+		<dependency groupId="jline" artifactId="jline" version="2.12" dest="${lib.dir}" type="jar" unzip="false"/>
+    <dependency groupId="com.beust" artifactId="jcommander" version="1.47" dest="${lib.dir}" type="jar" unzip="false"/>
+    <dependency groupId="net.minidev" artifactId="json-smart-mini" version="1.0.8" unzip="false" type="jar" dest="${lib.dir}"/>
+    <dependency groupId="org.cfmlprojects" artifactId="runwar" version="${cli.runwar.version}" dest="${lucee.lib.dir}" unzip="false" type="jar" />
+    <!-- engine libs -->
+  	<dependency groupId="org.lucee" artifactId="lucee" version="${lucee.version}" 
+      dest="${lucee.lib.dir}" unzip="false" type="jar" />
+    <dependency groupId="org.lucee" artifactId="lucee.optional" version="${lucee.version}" 
+      dest="${lucee.lib.dir}" unzip="false" type="pom" />
+    <mvn-repo id="java.repo" url="http://download.java.net/maven/2/" />
+    <dependency groupId="javax.mail" artifactId="mail" version="1.4.4" dest="${lucee.lib.dir}" repoId="java.repo" unzip="false" type="jar" />
+  </target>
+
+  <target name="build.cli" description="creates an jar with the libs cli" depends="resolve.libs">
+    <antcontrib:var name="cli.version" value="${cli.version}.${lucee.version.long}" />
+    <echo message="building cli.version ${cli.version}" />
+    <version-splitter version="${lucee.version.long}" property="lucee.version" bump="" />
+    <property name="runcli.jar.file" value="${dist.dir}/cli/lucee-cli.jar"/>
+    <delete dir="${temp.dir}" />
+    <delete dir="${dist.dir}/cli" />
+    <delete dir="${temp.dir}/cli" />
+    <mkdir dir="${temp.dir}/cli" />
+    <mkdir dir="${dist.dir}/cli" />
+    <!--  compile the loader and the runner together, tho we will separate them into different jars -->
+    <path id="classpath">
+      <fileset dir="${lucee.lib.dir}"/>
+      <fileset dir="${cfdistro.lib.dir}"/>
+      <fileset dir="${lib.dir}"/>
+    </path>
+    <javac-ecj srcdir="${src.dir}/java" destdir="${temp.dir}/cli/bin" maxmemory="128M"
+      compliance="${lucee.javac.compiler}" classpath="${toString:classpath}" />
+    
+    <copy todir="${lucee.lib.dir}">
+      <fileset dir="${lib.dir}" includes="*.jar" />
+    </copy>
+
+    <mkdir dir="${temp.dir}/engine" />
+    <configure-lucee-web 
+      config-server="${temp.dir}/engine/cfml/cli/cfml-server/context/lucee-server.xml"
+      config-web="${temp.dir}/engine/cfml/cli/cfml-web/lucee-web.xml.cfm"
+      dump-cfc="${temp.dir}/engine/cfml/cli/cfml-server/context/library/tag/Dump.cfc"/>
+    <copy file="${src.dir}/resources/error-cli.cfm" todir="${temp.dir}/engine/cfml/cli/cfml-web/context/templates/error/" />
+<!-- 
+ 		<replace file="${temp.dir}/engine/cfml/cfml-server/context/library/tag/Dump.cfc" token="modern&quot;;" value="text&quot;;"/>
+ -->
+    <antcontrib:var name="lucee.config.file" value="${temp.dir}/engine/cfml/cli/cfml-web/lucee-web.xml.cfm" />
+    <lucee-error-template path="/lucee-context/templates/error/error-cli.cfm" />
+    <!-- icon for cli -->
+    <copy todir="${temp.dir}/cli/bin/resource">
+      <fileset dir="${src.dir}/resources"/>
+    </copy>
+    <zip destfile="${temp.dir}/cli/engine.zip">
+      <fileset dir="${temp.dir}/engine"/>
+    </zip>
+
+    <!-- we put the loader into a jar and then into libs.zip for classloading reasons -->
+    <jar destfile="${temp.dir}/cli/luceecli.jar" filesetmanifest="mergewithoutmain" level="9">
+      <manifest>
+        <attribute name="Main-Class" value="luceecli.CLIMain" />
+      </manifest>
+      <fileset dir="${temp.dir}/cli/bin">
+        <exclude name="cliloader/*" />
+      </fileset>
+    </jar>
+    <delete dir="${temp.dir}/cli/bin/luceecli" />
+
+    <!--  create the cfml zip -->
+    <property name="cli.cfml.version" value="${cli.version}" />
+    <echo message="adding cfml version ${cli.cfml.version}" />
+    <echo file="${temp.dir}/cli/bin/cliloader/cfml.version" message="${cli.cfml.version}"/>
+    <zip destfile="${temp.dir}/cli/cfml.zip">
+      <fileset dir="${src.dir}/cfml" excludes="**/cfdistro/home/**, **/cfdistro.zip"/>
+      <zipfileset file="${temp.dir}/version" fullpath="cli/version"/>
+      <zipfileset file="${temp.dir}/cli/bin/cliloader/cfml.version" fullpath=".version"/>
+    </zip>
+
+    <!--  create the libs zip including cli loader, optionally use pack200 -->
+    <antcontrib:if>
+      <equals arg1="${cli.use.pack200}" arg2="true" />
+      <then>
+        <delete dir="${temp.dir}/packlibs" />
+        <mkdir dir="${temp.dir}/packlibs"/>
+        <mkdir dir="${temp.dir}/packlibs/packed"/>
+        <copy todir="${temp.dir}/packlibs">
+          <fileset dir="${lucee.lib.dir}">
+            <include name="**/*.jar"/>
+            <exclude name="**/lucee-loader.jar"/>
+            <exclude name="**/javax.servlet.jar"/>
+            <exclude name="**/org.mortbay.jetty.jar"/>
+          </fileset>
+          <fileset file="${temp.dir}/cli/luceecli.jar" />
+        </copy>
+        <packjars dir="${temp.dir}/packlibs" packdir="${temp.dir}/packlibs/packed"/>
+        <zip destfile="${temp.dir}/cli/libs.zip">
+          <fileset dir="${temp.dir}/packlibs/packed"/>
+        </zip>
+        <delete dir="${temp.dir}/packlibs" />
+      </then>
+      <else>
+        <zip destfile="${temp.dir}/cli/libs.zip">
+          <fileset dir="${lucee.lib.dir}">
+          <include name="**/*.jar"/>
+          <exclude name="**/lucee-loader.jar"/>
+          <exclude name="**/javax*servlet.jar"/>
+          </fileset>
+          <fileset file="${temp.dir}/cli/luceecli.jar" />
+        </zip>
+      </else>
+    </antcontrib:if>
+    <delete file="${temp.dir}/cli/luceecli.jar" />
+
+    <echo file="${temp.dir}/version" message="${cli.version}" />
+    <copy file="${src.dir}/java/cliloader/cli.properties" todir="${temp.dir}/cli/bin/cliloader" />
+    <copy todir="${temp.dir}/cli/bin/cliloader" file="${src.dir}/java/cliloader/version.properties">
+      <filterchain><expandproperties/><deletecharacters chars="\n"/><trim/><ignoreblank/></filterchain>
+    </copy>
+
+    <jar destfile="${runcli.jar.file}" filesetmanifest="mergewithoutmain" level="9">
+      <manifest>
+        <attribute name="Main-Class" value="cliloader.LoaderCLIMain" />
+      </manifest>
+      <fileset file="${temp.dir}/cli/libs.zip" />
+      <fileset file="${temp.dir}/cli/cfml.zip" />
+      <fileset file="${temp.dir}/cli/engine.zip" />
+      <fileset dir="${temp.dir}/cli/bin" />
+      <zipfileset src="${lib.dir}/json-smart-mini-1.0.8.jar" includes="**/*.class"/>
+      <zipfileset file="${temp.dir}/version" fullpath="version"/>
+    </jar>
+ 	</target>
+
+	<target name="build.cli.bin" description="creates an jar with the libs cli" depends="build.cli">
+    <concat destfile="${dist.dir}/cli/lucee" force="yes" binary="true">
+      <fileset file="${src.dir}/bin/lucee.sh" />
+      <fileset file="${dist.dir}/cli/lucee-cli.jar" />
+    </concat>
+    <chmod file="${dist.dir}/cli/lucee" perm="a+x"/>
+    <zip destfile="${dist.dir}/cli/lucee.bin.zip">
+      <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
+    </zip>
+ 	</target>
+
+  <target name="build.cli.exe" description="creates an jar with the libs cli" depends="build.cli">
+    <property name="cfmlprojects.sign.exe.cert" value=""/>
+    <property name="cfmlprojects.sign.exe.key" value=""/>
+    <property name="cfmlprojects.sign.exe.passphrase" value=""/>
+    <!-- openssl rsa -in project.key -outform PVK -pvk-strong -out project.pvk -->
+    <jar2exe
+      jar="${dist.dir}/cli/lucee-cli.jar" exe="${dist.dir}/cli/lucee.exe"
+      icon="${src.dir}/resources/lucee.ico" mutexName="lucee.cli.Console"
+      headerType="console" customProcName="false" stayAlive="true"
+      certfile="${cfmlprojects.sign.exe.cert}" keyfile="${cfmlprojects.sign.exe.key}"
+      keypass="${cfmlprojects.sign.exe.passphrase}">
+      <jre-element>
+        <jre path="./jre/" minVersion="1.6.0">
+        <opt>-Duser.dir="%OLDPWD%";</opt>
+        </jre>
+      </jre-element>
+    </jar2exe>
+    <zip destfile="${dist.dir}/cli/lucee.win32.zip">
+      <zipfileset file="${dist.dir}/cli/lucee.exe" prefix=""/>
+    </zip>
+  </target>
+
+  <target name="build.cli.jre" depends="build.cli.bin, build.cli.exe">
+    <echo message="bundling ${jre.version} jre" />
+    <dependency groupId="oracle" artifactId="jre" version="${jre.version}" type="zip" classifier="win32" />
+    <dependency groupId="oracle" artifactId="jre" version="${jre.version}" type="zip" classifier="win64" />
+    <dependency groupId="oracle" artifactId="jre" version="${jre.version}" type="zip" classifier="linux32" />
+    <dependency groupId="oracle" artifactId="jre" version="${jre.version}" type="zip" classifier="linux64" />
+    <dependency groupId="oracle" artifactId="jre" version="${jre.version}" type="zip" classifier="darwin64" />
+    <zip destfile="${dist.dir}/cli/cli-jre-win32.zip">
+      <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/${jre.version}/jre-${jre.version}-win32.zip"/>
+      <fileset file="${dist.dir}/cli/lucee.exe" />
+    </zip>
+    <zip destfile="${dist.dir}/cli/cli-jre-win64.zip">
+      <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/${jre.version}/jre-${jre.version}-win64.zip"/>
+      <fileset file="${dist.dir}/cli/lucee.exe" />
+    </zip>
+    <zip destfile="${dist.dir}/cli/cli-jre-linux32.zip">
+      <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/${jre.version}/jre-${jre.version}-linux32.zip"/>
+      <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
+    </zip>
+    <zip destfile="${dist.dir}/cli/cli-jre-linux64.zip">
+      <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/${jre.version}/jre-${jre.version}-linux64.zip"/>
+      <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
+    </zip>
+    <zip destfile="${dist.dir}/cli/cli-jre-darwin64.zip">
+      <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/${jre.version}/jre-${jre.version}-darwin64.zip"/>
+      <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
+    </zip>
+    <pom-and-deploy pomid="cli-jre.pom" packaging="pom" buildtype="${mvn.type}"
+        groupId="org.lucee" artifactId="lucee.cli.jre" version="${cli.version}" name="lucee.cli.jre">
+    <attachments>
+      <attach file="${dist.dir}/cli/cli-jre-win32.zip" type="zip" classifier="win32"/>
+      <attach file="${dist.dir}/cli/cli-jre-win64.zip" type="zip" classifier="win64"/>
+      <attach file="${dist.dir}/cli/cli-jre-linux32.zip" type="zip" classifier="linux32"/>
+      <attach file="${dist.dir}/cli/cli-jre-linux64.zip" type="zip" classifier="linux64"/>
+      <attach file="${dist.dir}/cli/cli-jre-darwin64.zip" type="zip" classifier="darwin64"/>
+    </attachments>
+    </pom-and-deploy>
+  </target>
+
+  <target name="build.cli.express" depends="build.cli">
+    <build-cli-express jre.version="${jre.version}" />
+  </target>
+
+  <macrodef name="build-cli-express">
+    <attribute name="jre.version" />
+    <sequential>
+      <delete dir="${temp.dir}/express" />
+      <mkdir dir="${temp.dir}/express" />
+      <mkdir dir="${dist.dir}/express" />
+      <mkdir dir="${temp.dir}/express/webroot" />
+      <echo message="bundling @{jre.version} jre" />
+      <echo file="${temp.dir}/express/start.bat">%CD%\lucee -server -background --port 8888 --war %CD%\webroot --open-browser true --open-url /</echo>
+      <echo file="${temp.dir}/express/start.cmd">#!/bin/bash
+reldir=`dirname $0`
+cd $reldir/build
+./lucee -server -background --port 8888 --war %CD%\webroot --open-browser true --open-url /
+</echo>
+      <echo file="${temp.dir}/express/webroot/index.cfm"><![CDATA[<cfoutput><h2>Welcome to Lucee!</h2><cfdump var="#server#"/></cfoutput>]]></echo>
+      <zip destfile="${dist.dir}/express/cli-express-jre-win32.zip">
+        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-win32.zip"/>
+        <fileset file="${dist.dir}/cli/lucee.exe" />
+        <fileset file="${temp.dir}/express/start.bat" />
+        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+      </zip>
+      <zip destfile="${dist.dir}/express/cli-express-jre-win64.zip">
+        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-win64.zip"/>
+        <fileset file="${dist.dir}/cli/lucee.exe" />
+        <fileset file="${temp.dir}/express/start.bat" />
+        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+      </zip>
+      <zip destfile="${dist.dir}/express/cli-express-jre-linux32.zip">
+        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-linux32.zip"/>
+        <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
+        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+      </zip>
+      <zip destfile="${dist.dir}/express/cli-express-jre-linux64.zip">
+        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-linux64.zip"/>
+        <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
+        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+      </zip>
+      <zip destfile="${dist.dir}/express/cli-express-jre-darwin64.zip">
+        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-darwin64.zip"/>
+        <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
+        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+      </zip>
+      <pom-and-deploy pomid="cli-express.pom" packaging="pom" buildtype="${mvn.type}"
+        groupId="org.lucee" artifactId="lucee.cli.express" version="${cli.version}" name="lucee.cli.express">
+        <attachments>
+          <attach file="${dist.dir}/express/cli-express-jre-win32.zip" type="zip" classifier="jre-@{jre.version}-win32"/>
+          <attach file="${dist.dir}/express/cli-express-jre-win64.zip" type="zip" classifier="jre-@{jre.version}-win64"/>
+          <attach file="${dist.dir}/express/cli-express-jre-linux32.zip" type="zip" classifier="jre-@{jre.version}-linux32"/>
+          <attach file="${dist.dir}/express/cli-express-jre-linux64.zip" type="zip" classifier="jre-@{jre.version}-linux64"/>
+          <attach file="${dist.dir}/express/cli-express-jre-darwin64.zip" type="zip" classifier="jre-@{jre.version}-darwin64"/>
+        </attachments>
+      </pom-and-deploy>
+		</sequential>
+	</macrodef>
+	
+ 	<target name="build.cli.mvn" depends="build.cli.rpm,build.cli.deb,build.cli.exe">
+		<pom-and-deploy pomid="cli.pom" packaging="pom" buildtype="${mvn.type}"
+			groupId="org.lucee" artifactId="lucee.cli" version="${cli.version}"
+			name="lucee.cli">
+			<attachments>
+				<attach file="${dist.dir}/cli/lucee-cli.jar" type="jar" />
+				<attach file="${dist.dir}/cli/lucee.bin.zip" type="zip" classifier="bin" />
+				<attach file="${dist.dir}/cli/lucee.win32.zip" type="zip" classifier="win32" />
+				<attach file="${dist.dir}/lucee-cli_${cli.version}-1_all.deb" type="deb" />
+				<attach file="${rpm.repo}/lucee-cli-${cli.version}-1.noarch.rpm" type="rpm" />
+			</attachments>
+		</pom-and-deploy>
+	</target>
+
+ 	<target name="build.cli.all" depends="build.cli.mvn,build.cli.jre,build.cli.express">
+	</target>
+
+  <target name="build.cli.rpm" depends="build.cli.bin"  xmlns:redline="antlib:org.redline_rpm">
+    <mkdir dir="${rpm.repo}" />
+    <echo message="Making rpm in ${rpm.repo} Packager:${cli.packager.name} ${cli.packager.email} Version: ${cli.version}" />
+    <rpm-create rpm.repo="${rpm.repo}" rpm.release="1"
+      rpm.reponame="cfmlprojects" rpm.baseurl="http://cfmlprojects.org/artifacts/RPMS/noarch"
+      rpm.group="org.lucee" rpm.name="lucee-cli" rpm.version="${cli.version}"
+      rpm.packager="${cli.packager.name} ${cli.packager.email}"
+      rpm.url="http://getlucee.org" failonerror="${build.rpm.failonerror}"
+      rpm.keyring="${cfmlprojects.sign.keyring}" rpm.key="${cfmlprojects.sign.key.id}" 
+      rpm.passphrase="${cfmlprojects.sign.key.passphrase}">
+      <tarfileset file="${dist.dir}/cli/lucee" prefix="/usr/bin"
+        filemode="744" username="root" group="root"/>
+    </rpm-create>
+    <!--
+    <rpm-sign dir="${rpm.repo}"
+    	gpgname="${cfmlprojects.sign.key.name}"
+    	passphrase="${cfmlprojects.sign.key.passphrase}"/>
+    -->
+  </target>
+
+  <target name="build.cli.deb" depends="build.cli.bin" description="builds a .deb file for debian-based systems">
+    <echo message="Creating debian .deb file from: ${dist.dir}"/>
+    <property name="deb.repo" value="${cfdistro.basedir}/artifacts/debs/noarch" />
+    <mkdir dir="${deb.repo}"/>
+    <delete file="${dist.dir}/lucee-cli_${cli.version}-1_all.deb" />
+    <taskdef-dependency name="debtask" classname="debrepo.ant.DebTask" artifactId="debrepo" groupId="org.cfmlprojects" version="1.0.0" />
+    <debtask
+      todir="${dist.dir}"
+      package="lucee-cli"
+      section="web"
+      depends="java-common"
+      key="${cfmlprojects.sign.key.id}" passphrase="${cfmlprojects.sign.key.passphrase}"
+      keyring="${cfmlprojects.sign.keyring}">
+      <version upstream="${cli.version}"/>
+      <maintainer name="${cli.packager.name}" email="${cli.packager.email}"/>
+      <description synopsis="Lucee CFML Engine">Lucee is a high performance CFML engine.  Version: ${lucee.version.long}.</description>
+      <tarfileset file="${dist.dir}/cli/lucee" prefix="usr/local/bin" filemode="755"/>
+    </debtask>
+    <echo message="Updating apt (deb) repo in ${deb.repo}"/>
+    <copy file="${dist.dir}/lucee-cli_${cli.version}-1_all.deb" todir="${deb.repo}" />
+    <deb-repo dir="${deb.repo}"
+      label="cfmlprojects" description="cfmlprojects.org debian repository"
+      key="${cfmlprojects.sign.key.id}" passphrase="${cfmlprojects.sign.key.passphrase}"
+      keyring="${cfmlprojects.sign.keyring}" />
+  </target>
+
+  <macrodef name="configure-lucee-web">
+    <attribute name="lucee-jar" default="${lucee.lib.dir}/lucee-jar-${lucee.version}.jar" />
+    <attribute name="config-web" />
+    <attribute name="config-server" />
+    <attribute name="dump-cfc" />
+    <sequential>
+      <dependency groupId="org.lucee" artifactId="lucee.config" version="${lucee.version.long}" dest="${temp.dir}/luceeconfigs" unzip="true" type="zip" />
+      <property name="extracted" value="${temp.dir}/luceeconfigs" />
+      <copy file="${extracted}/server.xml" tofile="@{config-server}" overwrite="true" />
+      <copy file="${extracted}/web.xml" tofile="@{config-web}" overwrite="true" />
+    </sequential>
+  </macrodef>
+
+  <macrodef name="packjars">
+  <attribute name="dir"/>
+  <attribute name="packdir"/>
+  <sequential>
+    <antcontrib:for param="file">
+      <path>
+        <fileset dir="@{dir}" includes="*.jar"/>
+      </path>
+      <sequential>
+        <antcontrib:var name="pack200.destdir" unset = "true"/> 
+        <property name="pack200.destdir" location="@{packdir}"/> 
+        <antcontrib:var name="pack200.destfile" unset = "true"/> 
+        <basename property="pack200.destfile" file="@{file}" /> 
+        <echo message="packing @{file}"/>
+        <exec executable="${java.home}/bin/pack200" resultproperty="pack.resultcode">
+          <arg value="${pack200.destdir}/${pack200.destfile}.pack.gz"/>
+          <arg value="@{file}"/>
+        </exec>
+        <antcontrib:if>
+          <equals arg1="${pack.resultcode}" arg2="0" />
+          <else>
+            <copy file="@{file}" todir="@{packdir}" verbose="false"/>
+            <delete file="${pack200.destdir}/${pack200.destfile}.pack.gz" quiet="true" verbose="false"/>
+          </else>
+        </antcontrib:if>
+        <antcontrib:var unset="true" name="pack.resultcode" />
+      </sequential>
+    </antcontrib:for>
+    
+    <!--
+    <apply executable="pack200" parallel="false" outputproperty="packoutput">
+      <arg value=" - - repack"/>
+      <fileset dir="@{rootdir}" includes="**/*.jar" />
+    </apply>
+    <echo message="${packoutput}" />
+    <echo message="Signing libs in @{rootdir}"/>
+    <signjar 
+      alias="${keystore.alias}" keystore="${keystore.file}" storepass="${keystore.password}"
+      lazy="true">
+      <path>
+        <fileset dir="@{rootdir}" includes="**/*.jar" />
+      </path>
+    </signjar>
+    -->
+   </sequential>
+  </macrodef>
+		
+</project>

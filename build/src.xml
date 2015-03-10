@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<src>
+	<project>
+		<src dest="../" type="git" 
+		uri="https://github.com/cfmlprojects/lucee-cli.git" 
+		branch="master" remote="origin" user="" password="" />
+	</project>
+	<sources>
+	</sources>
+</src>
