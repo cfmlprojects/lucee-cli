@@ -107,8 +107,8 @@
           <fileset dir="${lucee.lib.dir}">
             <include name="**/*.jar"/>
             <exclude name="**/lucee-loader.jar"/>
-            <exclude name="**/javax.servlet.jar"/>
-            <exclude name="**/org.mortbay.jetty.jar"/>
+            <exclude name="**/javax*servlet.jar"/>
+            <exclude name="**/org*mortbay*jetty.jar"/>
           </fileset>
           <fileset file="${temp.dir}/cli/luceecli.jar" />
         </copy>
@@ -124,6 +124,7 @@
           <include name="**/*.jar"/>
           <exclude name="**/lucee-loader.jar"/>
           <exclude name="**/javax*servlet.jar"/>
+          <exclude name="**/org*mortbay*jetty.jar"/>
           </fileset>
           <fileset file="${temp.dir}/cli/luceecli.jar" />
         </zip>

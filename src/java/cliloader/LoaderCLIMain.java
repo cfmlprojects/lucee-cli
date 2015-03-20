@@ -215,6 +215,7 @@ public class LoaderCLIMain {
 			Util.unzipInteralZip(classLoader, CFML_ZIP_PATH, cfmlDir, debug);
 			Util.unzipInteralZip(classLoader, ENGINECONF_ZIP_PATH, new File(cli_home.getPath()+"/engine"), debug);
 			Util.copyInternalFile(classLoader, "resource/trayicon.png", new File(libDir,"trayicon.png"));
+			Util.copyInternalFile(classLoader, "resource/traymenu.json", new File(libDir,"traymenu.json"));
             Util.copyInternalFile(classLoader, VERSION_PROPERTIES_PATH, new File(libDir,"version.properties"));
 			System.out.println("");
 			System.out.println("Libraries initialized");
@@ -250,8 +251,8 @@ public class LoaderCLIMain {
         setLuceeCLIConfigWebDir(configCLIWebDir);
 		props.setProperty("cfml.cli.home", cli_home.getAbsolutePath());
 		props.setProperty("cfml.cli.pwd", getCurrentDir());
-		props.setProperty("lucee.config.server", configServerDir.getAbsolutePath());
-		props.setProperty("lucee.config.web", configWebDir.getAbsolutePath());
+		props.setProperty("cfml.config.server", configServerDir.getAbsolutePath());
+		props.setProperty("cfml.config.web", configWebDir.getAbsolutePath());
 		props.setProperty("cfml.server.trayicon", libDir.getAbsolutePath() + "/trayicon.png");
         props.setProperty("cfml.server.dockicon","");
         for (Iterator<?> iterator = props.keySet().iterator(); iterator.hasNext();) {
@@ -360,10 +361,12 @@ public class LoaderCLIMain {
             addArgs= new String[] {
                     "-war",webRoot.getPath(),
                     "--server-name",getServerName(),
-                    "--lucee-server-config",configServerDir.getAbsolutePath(),
-                    "--lucee-web-config",configWebDir.getAbsolutePath(),
+                    "--cfengine-name","lucee",
+                    "--cfml-server-config",configServerDir.getAbsolutePath(),
+                    "--cfml-web-config",configWebDir.getAbsolutePath(),
                     "--background","true",
                     "--tray-icon",libDir.getAbsolutePath() + "/trayicon.png",
+                    "--tray-config",libDir.getAbsolutePath() + "/traymenu.json",
                     "--lib-dirs",libDir.getPath(),
                     "--debug",Boolean.toString(debug),
                     "--processname",name
@@ -372,9 +375,11 @@ public class LoaderCLIMain {
             addArgs= new String[] {
                     "-war",webRoot.getPath(),
                     "--server-name",getServerName(),
-                    "--lucee-server-config",configServerDir.getAbsolutePath(),
-                    "--lucee-web-config",configWebDir.getAbsolutePath(),
+                    "--cfengine-name","lucee",
+                    "--cfml-server-config",configServerDir.getAbsolutePath(),
+                    "--cfml-web-config",configWebDir.getAbsolutePath(),
                     "--tray-icon",libDir.getAbsolutePath() + "/trayicon.png",
+                    "--tray-config",libDir.getAbsolutePath() + "/traymenu.json",
                     "--lib-dirs",libDir.getPath(),
                     "--background","false",
                     "--debug",Boolean.toString(debug),
@@ -389,13 +394,15 @@ public class LoaderCLIMain {
 //        Thread.currentThread().setContextClassLoader(cl);
         URL[] urls = new URL[1];
         urls[0] = libDir.listFiles(new PrefixFilter("runwar"))[0].toURI().toURL();
+        System.out.println(urls[0].getFile());
         URLClassLoader cl = new URLClassLoader(urls,getClassLoader());
         Class<?> runwar;
         try{
             runwar = cl.loadClass("runwar.Server");
             Method startServer = runwar.getMethod("startServer",new Class[]{String[].class, URLClassLoader.class});
-            Thread.currentThread().setContextClassLoader(cl);
+//            Thread.currentThread().setContextClassLoader(cl);
             startServer.invoke(runwar.getConstructor().newInstance(), new Object[]{args, cl});
+//            startServer.invoke(runwar.getConstructor().newInstance(), new Object[]{args,null});
         } catch (Exception e) {
             exitCode = 1;
             if(e.getCause() != null) {
@@ -454,6 +461,7 @@ public class LoaderCLIMain {
         if(_classLoader == null) {
             File libDir = getLibDir();
             File[] children = libDir.listFiles(new ExtFilter(".jar"));
+            ArrayList<File> jars = new ArrayList<File>();
             if(children.length<2) {
                 libDir=new File(libDir,"lib");
                 setLibDir(libDir);
@@ -464,18 +472,23 @@ public class LoaderCLIMain {
                 System.exit(1);
             }
             
-            URL[] urls = new URL[children.length];
+            for (File jar : children) {
+            	jars.add(jar);
+                if (!jar.getName().contains("runwar")){
+                }
+        	}
+            URL[] urls = new URL[jars.size()];
             if(debug) System.out.println("Loading Jars");
-            for(int i=0;i<children.length;i++){
+            for(int i=0;i<jars.size();i++){
                 try {
-                    urls[i]=children[i].toURI().toURL();
+                    urls[i]=jars.get(i).toURI().toURL();
                     if(debug) System.out.println("- "+urls[i]);
                 } catch (MalformedURLException e) {
                     e.printStackTrace();
                 }
             }
-            URLClassLoader cl = new URLClassLoader(urls,classLoader);
-            _classLoader = cl;
+            URLClassLoader libsLoader = new URLClassLoader(urls,classLoader);
+            _classLoader = libsLoader;
         }
         return _classLoader;
     }
