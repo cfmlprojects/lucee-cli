@@ -394,7 +394,6 @@ public class LoaderCLIMain {
 //        Thread.currentThread().setContextClassLoader(cl);
         URL[] urls = new URL[1];
         urls[0] = libDir.listFiles(new PrefixFilter("runwar"))[0].toURI().toURL();
-        System.out.println(urls[0].getFile());
         URLClassLoader cl = new URLClassLoader(urls,getClassLoader());
         Class<?> runwar;
         try{

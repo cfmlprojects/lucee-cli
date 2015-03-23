@@ -223,7 +223,7 @@
     </pom-and-deploy>
   </target>
 
-  <target name="build.cli.express" depends="build.cli">
+  <target name="build.cli.express" depends="build.cli.jre">
     <build-cli-express jre.version="${jre.version}" />
   </target>
 
@@ -231,43 +231,55 @@
     <attribute name="jre.version" />
     <sequential>
       <delete dir="${temp.dir}/express" />
-      <mkdir dir="${temp.dir}/express" />
-      <mkdir dir="${dist.dir}/express" />
       <mkdir dir="${temp.dir}/express/webroot" />
+      <mkdir dir="${dist.dir}/express" />
       <echo message="bundling @{jre.version} jre" />
-      <echo file="${temp.dir}/express/start.bat">%CD%\lucee -server -background --port 8888 --war %CD%\webroot --open-browser true --open-url /</echo>
-      <echo file="${temp.dir}/express/start.cmd">#!/bin/bash
-reldir=`dirname $0`
-cd $reldir/build
-./lucee -server -background --port 8888 --war %CD%\webroot --open-browser true --open-url /
-</echo>
+      <express-ctl-win-unix dest="${temp.dir}/express/" />
       <echo file="${temp.dir}/express/webroot/index.cfm"><![CDATA[<cfoutput><h2>Welcome to Lucee!</h2><cfdump var="#server#"/></cfoutput>]]></echo>
       <zip destfile="${dist.dir}/express/cli-express-jre-win32.zip">
-        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-win32.zip"/>
+        <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-win32.zip"/>
         <fileset file="${dist.dir}/cli/lucee.exe" />
-        <fileset file="${temp.dir}/express/start.bat" />
-        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" excludes="**/bin/**,lucee*"/>
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" includes="**/bin/service/**,lucee*"
+          filemode="711"/>
       </zip>
       <zip destfile="${dist.dir}/express/cli-express-jre-win64.zip">
-        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-win64.zip"/>
+        <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-win64.zip"/>
         <fileset file="${dist.dir}/cli/lucee.exe" />
-        <fileset file="${temp.dir}/express/start.bat" />
-        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" excludes="**/bin/**,lucee*"/>
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" includes="**/bin/service/**,lucee*"
+          filemode="711"/>
       </zip>
       <zip destfile="${dist.dir}/express/cli-express-jre-linux32.zip">
-        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-linux32.zip"/>
+        <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-linux32.zip"/>
         <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
-        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+        <zipfileset dir="${temp.dir}/express"
+          prefix="" excludes="**/bin/**,lucee*"/>
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" includes="**/bin/daemon/**,lucee*"
+          filemode="711"/>
       </zip>
       <zip destfile="${dist.dir}/express/cli-express-jre-linux64.zip">
-        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-linux64.zip"/>
+        <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-linux64.zip"/>
         <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
-        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" excludes="**/bin/**,lucee*"/>
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" includes="**/bin/daemon/**,lucee*"
+          filemode="711"/>
       </zip>
       <zip destfile="${dist.dir}/express/cli-express-jre-darwin64.zip">
-        <zipgroupfileset file="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-darwin64.zip"/>
+        <zipfileset prefix="jre" src="${maven.repo.local}/oracle/jre/@{jre.version}/jre-@{jre.version}-darwin64.zip"/>
         <zipfileset file="${dist.dir}/cli/lucee" filemode="711" prefix="" />
-        <zipfileset dir="${temp.dir}/express/webroot" prefix="webroot/" />
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" excludes="**/bin/**,lucee*"/>
+        <zipfileset dir="${temp.dir}/express" 
+          prefix="" includes="**/bin/daemon/**,lucee*"
+          filemode="711"/>
       </zip>
       <pom-and-deploy pomid="cli-express.pom" packaging="pom" buildtype="${mvn.type}"
         groupId="org.lucee" artifactId="lucee.cli.express" version="${cli.version}" name="lucee.cli.express">
@@ -345,6 +357,93 @@ cd $reldir/build
       keyring="${cfmlprojects.sign.keyring}" />
   </target>
 
+  <macrodef name="express-ctl-win-unix">
+    <attribute name="dest" />
+    <attribute name="title" default="Lucee Express Control Script"/>
+    <attribute name="ctl-name" default="lucee-ctl" />
+    <attribute name="service-name" default="lucee-express" />
+    <attribute name="service-user" default="lucee-express" />
+    <attribute name="service-title" default="Lucee Express" />
+    <attribute name="service-desc" default="Lucee Express Server" />
+    <attribute name="service-ico" default="" />
+    <sequential>
+      <echo message="Writing Control scripts to @{dest}" />
+      <ctl-menu-unix title="@{title}" property="_ctl_menu">
+        <menu>
+          <option name="start-foreground" description="start server in foreground">
+            cd $SCRIPT_DIR
+            ./lucee -lucee_home=$SCRIPT_DIR/.lucee -server --port 8888 --war $SCRIPT_DIR/webroot --open-browser true --open-url /
+          </option>
+          <option name="start" description="start the server">
+            cd $SCRIPT_DIR
+            ./lucee -lucee_home=$SCRIPT_DIR/.lucee -server -background --port 8888 --war $SCRIPT_DIR/webroot --open-browser true --open-url /
+          </option>
+          <option name="stop" description="stop the server">
+            cd $SCRIPT_DIR
+            ./lucee -lucee_home=$SCRIPT_DIR/.lucee -stop
+          </option>
+          <option name="separator" />
+          <option name="install-daemon" description="install the express server daemon">
+            "$SCRIPT_DIR/bin/daemon/"install.sh
+          </option>
+          <option name="remove-daemon" description="remove the express server daemon">
+            "$SCRIPT_DIR/bin/daemon/"remove.sh
+          </option>
+        </menu>
+      </ctl-menu-unix>
+      <echo file="@{dest}/@{ctl-name}" message="${_ctl_menu}"/>
+      <chmod file="@{dest}/@{ctl-name}" perm="ugo+rx"/>
+      <ctl-menu-windows title="@{title}" property="_ctl_menu">
+        <menu>
+          <option name="start" description="start the server">
+            %SCRIPT_DIR%\lucee -lucee_home=%SCRIPT_DIR%\.lucee -server -background --port 8888 --war %SCRIPT_DIR%\webroot --open-browser true --open-url /
+          </option>
+          <option name="stop" description="stop the server">
+            %SCRIPT_DIR%\lucee -lucee_home=%SCRIPT_DIR%\.lucee -stop
+          </option>
+          <option name="separator" />
+          <option name="install-service" description="install the express server as a service">
+            CALL "%SCRIPT_DIR%\bin\service\"install-service.bat install
+            CALL "%SCRIPT_DIR%\bin\service\"install-service.bat start
+          </option>
+          <option name="remove-service" description="remove the express server service">
+            CALL "%SCRIPT_DIR%\bin\service\"install-service.bat uninstall
+          </option>
+        </menu>
+      </ctl-menu-windows>
+      <echo file="@{dest}/@{ctl-name}.bat" message="${_ctl_menu}"/>
+      <fixcrlf file="@{dest}/@{ctl-name}.bat" eol="crlf" />
+
+      <deamon-script-nix dest="@{dest}/bin/daemon"
+        name="@{service-name}"
+        title="@{service-title}"
+        description="@{service-desc}"
+        ctl-script="@{service-name}-ctl"
+        pid-file="$SERVICE_DIR/bin/lucee.pid"
+        arg-start="start"
+        arg-stop="stop"
+        user="@{service-user}"
+        log-file-out="#SERVICE_DIR#/logs/@{service-name}-service.log"
+        log-file-err="#SERVICE_DIR#/logs/@{service-name}-service-err.log"
+        grep-success-string="Lucee started"
+        grep-success-file="#SERVICE_DIR#/logs/@{service-name}-service.log"
+        additional=''
+      />
+      <deamon-script-win dest="@{dest}/bin/service"
+        name="@{service-name}"
+        title="@{service-title}"
+        description="@{service-desc}"
+        console-success-output=""
+        ctl-script="%SERVICE_HOME%\\@{service-name}-ctl.bat"
+        arg-start="start"
+        arg-stop="stop"
+        log-file-out="%SERVICE_HOME%\\logs\\@{service-name}-service.log"
+        log-file-err="%SERVICE_HOME%\\logs\\@{service-name}-service-err.log"
+        service-ico="@{service-ico}"
+      />
+    </sequential>
+  </macrodef>  
+  
   <macrodef name="configure-lucee-web">
     <attribute name="lucee-jar" default="${lucee.lib.dir}/lucee-jar-${lucee.version}.jar" />
     <attribute name="config-web" />

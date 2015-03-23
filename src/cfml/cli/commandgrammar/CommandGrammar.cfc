@@ -14,7 +14,7 @@ component output="false" persistent="false" {
 		 	System : cl.create( 'java.lang.System' )
 			,CommonTokenStream : cl.create("org.antlr.v4.runtime.CommonTokenStream")
 			,ANTLRInputStream : cl.create("org.antlr.v4.runtime.ANTLRInputStream")
-			,LuceeListener : cl.create("cfantlr.LuceeListener")
+			,LuceeListener : cl.create("cfantlr.RailoListener")
 			,ExceptionErrorStrategy : cl.create("cfantlr.ExceptionErrorStrategy")
 			,CommandGrammarLexer : cl.create("command.grammar.CommandGrammarLexer")
 			,CommandGrammarParser : cl.create("command.grammar.CommandGrammarParser")

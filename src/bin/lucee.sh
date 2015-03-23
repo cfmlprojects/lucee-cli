@@ -1,19 +1,13 @@
 #!/bin/sh
-cmd=
 for a in "$@"
 do
 	case "$a" in
-	-*) continue ;;
-	*)  cmd=$a; break; ;;
+	-java_home=*) JAVA_HOME=${a#*=}; break; ;;
+	-JAVA_HOME=*) JAVA_HOME=${a#*=}; break; ;;
+	-java_opts=*) JAVA_OPTS=${a#*=}; break; ;;
+	-JAVA_OPTS=*) JAVA_OPTS=${a#*=}; break; ;;
 	esac
 done
-
-use_pager=
-case "$cmd" in
-blame)    use_pager=1 ;;
-diff)     use_pager=1 ;;
-log)      use_pager=1 ;;
-esac
 
 this_script=`which "$0" 2>/dev/null`
 [ $? -gt 0 -a -f "$0" ] && this_script="$0"
@@ -24,7 +18,10 @@ then
 	cp="$cp:$LUCEE_CLASSPATH"
 fi
 
-java_args='-client'
+if [ -z "$JAVA_OPTS" ]
+then
+  JAVA_OPTS="-client -Xms128m -Xmx512m"
+fi
 
 # Cleanup paths for Cygwin.
 #
@@ -35,8 +32,7 @@ CYGWIN*)
 Darwin)
 	if [ -e /System/Library/Frameworks/JavaVM.framework ]
 	then
-		java_args='
-			-client
+		JAVA_OPTS=$JAVA_OPTS'
 			-Dcom.apple.mrj.application.apple.menu.about.name=Lucee
 			-Dcom.apple.mrj.application.growbox.intrudes=false
 			-Dapple.laf.useScreenMenuBar=true
@@ -58,23 +54,8 @@ fi
 
 if [ -d "$JRE" ]
 then
-	java="$JRE/bin/java"
+  java="$JRE/bin/java"
 fi
 
-if [ -n "$use_pager" ]
-then
-	use_pager=${LUCEE_PAGER:-${PAGER:-less}}
-	[ cat = "$use_pager" ] && use_pager=
-fi
-
-if [ -n "$use_pager" ]
-then
-	LESS=${LESS:-FSRX}
-	export LESS
-
-	"$java" $java_args cliloader.LoaderCLIMain "$@" | $use_pager
-	exit
-else
-  exec "$java" $java_args cliloader.LoaderCLIMain "$@"
-  exit 1
-fi
+exec "$java" $JAVA_OPTS cliloader.LoaderCLIMain "$@"
+exit 0
