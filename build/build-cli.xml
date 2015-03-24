@@ -29,6 +29,8 @@
       dest="${lucee.lib.dir}" unzip="false" type="jar" />
     <dependency groupId="org.lucee" artifactId="lucee.optional" version="${lucee.version}" 
       dest="${lucee.lib.dir}" unzip="false" type="pom" />
+	  <move file="${lucee.lib.dir}/lucee-inst-${lucee.version}.jar" toFile="${lucee.lib.dir}/lucee-inst.jar"/>
+	  <delete dir="${lucee.lib.dir}" includes="*.pom"/>
     <mvn-repo id="java.repo" url="http://download.java.net/maven/2/" />
     <dependency groupId="javax.mail" artifactId="mail" version="1.4.4" dest="${lucee.lib.dir}" repoId="java.repo" unzip="false" type="jar" />
   </target>
