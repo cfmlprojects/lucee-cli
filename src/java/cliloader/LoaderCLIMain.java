@@ -211,6 +211,7 @@ public class LoaderCLIMain {
 				|| updateLibs) {
 			System.out.println("Library path: " + libDir);
 			System.out.println("Initializing libraries -- this will only happen once, and takes a few seconds...");
+			Util.removePreviousLibs(libDir);
 			Util.unzipInteralZip(classLoader, LIB_ZIP_PATH, libDir, debug);
 			Util.unzipInteralZip(classLoader, CFML_ZIP_PATH, cfmlDir, debug);
 			Util.unzipInteralZip(classLoader, ENGINECONF_ZIP_PATH, new File(cli_home.getPath()+"/engine"), debug);
@@ -413,17 +414,17 @@ public class LoaderCLIMain {
         cl.close();
 	}
 
-    
     static Boolean versionFileMatches(File versionFile, String resourcePath) throws IOException {
         if(versionFile.exists()){
             try{
                 String installedVersion = Util.readFile(versionFile.getPath()).trim();
                 String currentVersion = Util.getResourceAsString(resourcePath).trim();
-                if(!installedVersion.equals(currentVersion)){
-                    log.warn("Current version and installed versions do not match! /n  *current: "
+        		VersionComparator versionComparator = new VersionComparator();
+                if(versionComparator.compare(currentVersion, installedVersion) > 0){
+                    log.warn("Current version higher than installed version! /n  *current: "
                         +currentVersion + "\n installed: " + installedVersion);
-                    log.debug("versions do not match: " + versionFile.getAbsolutePath()
-                            +"/"+ resourcePath + ":" + installedVersion + " != " + currentVersion);
+                    log.debug("Current version higher than installed version: " + versionFile.getAbsolutePath()
+                            +"/"+ resourcePath + ":" + installedVersion + " < " + currentVersion);
                     return false;
                 }
             } catch (Exception e) {
@@ -660,7 +661,6 @@ public class LoaderCLIMain {
                             cli_home = new File(mapGetNoCase(userProps,home));
                         }
                     } catch (IOException e) {
-                        // TODO Auto-generated catch block
                         e.printStackTrace();
                     }
                 }
