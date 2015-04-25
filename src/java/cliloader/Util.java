@@ -80,8 +80,8 @@ public class Util {
 	}
 
 	public static void removePreviousLibs(File libDir) {
-		if(libDir.exists() && libDir.listFiles(new PrefixFilter("runwar")).length > 0){
-			for(File previous : libDir.listFiles(new PrefixFilter("runwar"))) {
+		if(libDir.exists() && libDir.listFiles(new ExtFilter(".jar")).length > 0){
+			for(File previous : libDir.listFiles(new ExtFilter(".jar"))) {
 				try { previous.delete(); } catch (Exception e) {
 					System.err.println("Could not delete previous lib: " + previous.getAbsolutePath());
 				}
