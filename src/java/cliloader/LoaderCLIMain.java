@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.FilenameFilter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.net.URLDecoder;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -614,7 +615,8 @@ public class LoaderCLIMain {
     
     private static String getJarDir() {
         String path = new File(LoaderCLIMain.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParent();
-        return path;
+        // Decode things like spaces in folders which will be %20
+        return new java.net.URLDecoder().decode( path );
     }
     
     private static void setCLI_HOME(File value) {
