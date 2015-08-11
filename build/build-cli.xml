@@ -71,7 +71,12 @@
  		<replace file="${temp.dir}/engine/cfml/cfml-server/context/library/tag/Dump.cfc" token="modern&quot;;" value="text&quot;;"/>
  -->
     <antcontrib:var name="lucee.config.file" value="${temp.dir}/engine/cfml/cli/cfml-web/lucee-web.xml.cfm" />
-    <lucee-error-template path="/lucee-context/templates/error/error-cli.cfm" />
+    <lucee-password 
+      server-password="luceecli" config-server-file="${temp.dir}/engine/cfml/cli/cfml-server/context/lucee-server.xml"
+      web-password="luceecli" config-web-file="${temp.dir}/engine/cfml/cli/cfml-web/lucee-web.xml.cfm"
+    />
+    <lucee-error-template path="/lucee/templates/error/error-cli.cfm" 
+      configfile="${temp.dir}/engine/cfml/cli/cfml-web/lucee-web.xml.cfm" />
     <!-- icon for cli -->
     <copy todir="${temp.dir}/cli/bin/resource">
       <fileset dir="${src.dir}/resources"/>
@@ -117,7 +122,7 @@
           </fileset>
           <fileset file="${temp.dir}/cli/luceecli.jar" />
         </copy>
-        <packjars dir="${temp.dir}/packlibs" packdir="${temp.dir}/packlibs/packed"/>
+        <packjars dir="${temp.dir}/packlibs" packdir="${temp.dir}/packlibs/packed" excludes="ESAPI*"/>
         <zip destfile="${temp.dir}/cli/libs.zip">
           <fileset dir="${temp.dir}/packlibs/packed"/>
         </zip>
@@ -465,10 +470,11 @@
   <macrodef name="packjars">
   <attribute name="dir"/>
   <attribute name="packdir"/>
+  <attribute name="excludes" default=""/>
   <sequential>
     <antcontrib:for param="file">
       <path>
-        <fileset dir="@{dir}" includes="*.jar"/>
+        <fileset dir="@{dir}" includes="*.jar" excludes="@{excludes}"/>
       </path>
       <sequential>
         <antcontrib:var name="pack200.destdir" unset = "true"/> 
@@ -490,6 +496,10 @@
         <antcontrib:var unset="true" name="pack.resultcode" />
       </sequential>
     </antcontrib:for>
+    <!-- we just copy any excluded jars without packing them -->
+    <copy todir="@{packdir}">
+      <fileset dir="@{dir}" includes="@{excludes}"/>
+    </copy>
     
     <!--
     <apply executable="pack200" parallel="false" outputproperty="packoutput">
