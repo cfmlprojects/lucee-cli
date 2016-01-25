@@ -63,16 +63,19 @@
 
     <mkdir dir="${temp.dir}/engine" />
     <configure-lucee-web 
-      config-server="${temp.dir}/engine/cfml/cli/cfml-server/context/lucee-server.xml"
+      config-server="${temp.dir}/engine/cfml/cli/cfml-server/lucee-server/context/lucee-server.xml"
       config-web="${temp.dir}/engine/cfml/cli/cfml-web/lucee-web.xml.cfm"
-      dump-cfc="${temp.dir}/engine/cfml/cli/cfml-server/context/library/tag/Dump.cfc"/>
+      dump-cfc="${temp.dir}/engine/cfml/cli/cfml-web/context/library/tag/Dump.cfc"/>
     <copy file="${src.dir}/resources/error-cli.cfm" todir="${temp.dir}/engine/cfml/cli/cfml-web/context/templates/error/" />
+    <copy file="${src.dir}/resources/Dump.cfc" todir="${temp.dir}/engine/cfml/cli/cfml-web/context/library/tag/" />
 <!-- 
  		<replace file="${temp.dir}/engine/cfml/cfml-server/context/library/tag/Dump.cfc" token="modern&quot;;" value="text&quot;;"/>
  -->
     <antcontrib:var name="lucee.config.file" value="${temp.dir}/engine/cfml/cli/cfml-web/lucee-web.xml.cfm" />
+    <lucee-mapping physical="{lucee-server}/../../../../../../cfml/cli/" virtual="/cfml/cli" readonly="true" trusted="true" />
+
     <lucee-password 
-      server-password="luceecli" config-server-file="${temp.dir}/engine/cfml/cli/cfml-server/context/lucee-server.xml"
+      server-password="luceecli" config-server-file="${temp.dir}/engine/cfml/cli/cfml-server/lucee-server/context/lucee-server.xml"
       web-password="luceecli" config-web-file="${temp.dir}/engine/cfml/cli/cfml-web/lucee-web.xml.cfm"
     />
     <lucee-error-template path="/lucee/templates/error/error-cli.cfm" 

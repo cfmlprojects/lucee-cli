@@ -243,11 +243,11 @@ public class LoaderCLIMain {
             }		    
 		}
 		
-		File configServerDir=new File(libDir.getParentFile(),"engine/cfml/server/");
+		File configServerDir=new File(libDir.getParentFile(),"engine/cfml/server/cfml-server");
 		File configWebDir=new File(libDir.getParentFile(),"engine/cfml/server/cfml-web/"+getServerName());
 		setLuceeConfigServerDir(configServerDir);
         setLuceeConfigWebDir(configWebDir);
-		File configCLIServerDir=new File(libDir.getParentFile(),"engine/cfml/cli/");
+		File configCLIServerDir=new File(libDir.getParentFile(),"engine/cfml/cli/cfml-server");
 		File configCLIWebDir=new File(libDir.getParentFile(),"engine/cfml/cli/cfml-web");
 		setLuceeCLIConfigServerDir(configCLIServerDir);
         setLuceeCLIConfigWebDir(configCLIWebDir);

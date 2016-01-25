@@ -14,10 +14,10 @@ component output="false" {
   cr = System.getProperty("line.separator");
 
   /**
-   * constructor
-   * @inStram.hint input stream if running externally
-   * @printWriter.hint output if running externally
-   **/
+  * constructor
+  * @inStram.hint input stream if running externally
+  * @printWriter.hint output if running externally
+  **/
   function init(inStream, printWriter) {
     if(isNull(printWriter)) {
       //new PrintWriter(OutputStreamWriter(System.out,System.getProperty("jline.WindowsTerminal.output.encoding",System.getProperty("file.encoding"))));
@@ -45,23 +45,31 @@ component output="false" {
   }
 
   /**
-   * Run CommandLine
-   **/
+  * Run CommandLine
+  **/
   function runCommandLine(String line) {
     var result = commandHandler.runCommandLine(line);
     result = isNull(result) ? "" : print(result);
   }
 
   /**
-   * returns the console reader
-   **/
+  * returns the command line arguments
+  **/
+  function getArguments() {
+    var args = deserializeJSON(createObject("java", "java.lang.System").getProperty("cfml.cli.argument.array"));
+    return args;
+  }
+
+  /**
+  * returns the console reader
+  **/
   function getReader() {
     return reader;
   }
 
   /**
-   * sets exit flag
-   **/
+  * sets exit flag
+  **/
   function exit() {
     keepRunning = false;
     return "Peace out!";
@@ -117,6 +125,19 @@ component output="false" {
   **/
   function getPrompt() {
     return variables.shellPrompt;
+  }
+
+  /**
+  * read a line of input from the user
+  **/
+  function readLine() {
+    var input = "";
+    try {
+      input = reader.readLine();
+    } catch (any e) {
+      printError(e);
+    }
+    return input;
   }
 
   /**
