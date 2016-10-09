@@ -57,5 +57,5 @@ then
   java="$JRE/bin/java"
 fi
 
-exec "$java" $JAVA_OPTS cliloader.LoaderCLIMain "$@"
+exec "$java" $JAVA_OPTS -jar ${jar.name} "$@"
 exit 0

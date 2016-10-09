@@ -28,14 +28,14 @@ import net.minidev.json.JSONArray;
 
 public class LoaderCLIMain {
 
-	private static String LIB_ZIP_PATH = "libs.zip";
-	private static String CFML_ZIP_PATH = "cfml.zip";
-	private static String ENGINECONF_ZIP_PATH = "engine.zip";
-	private static String CFML_VERSION_PATH = "cliloader/cfml.version";
-	private static String VERSION_PROPERTIES_PATH = "cliloader/version.properties";
-	private static ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-	private static Boolean debug = false;
-	private static int exitCode = 0;
+    private static String LIB_ZIP_PATH = "libs.zip";
+    private static String CFML_ZIP_PATH = "cfml.zip";
+    private static String ENGINECONF_ZIP_PATH = "engine.zip";
+    private static String CFML_VERSION_PATH = "cliloader/cfml.version";
+    private static String VERSION_PROPERTIES_PATH = "cliloader/version.properties";
+    private static ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    private static Boolean debug = false;
+    private static int exitCode = 0;
     private static Boolean isBackground;
     private static File webRoot;
     private static File libDirectory;
@@ -47,137 +47,141 @@ public class LoaderCLIMain {
     private static String CR = System.getProperty("line.separator").toString();
     private static String serverName = "default";
 
-	@SuppressWarnings("static-access")
+    @SuppressWarnings("static-access")
     public static void main(String[] arguments) throws Throwable {
-	    Util.ensureJavaVersion();
-	    System.setProperty("apple.awt.UIElement","true");
-	    ArrayList<String> cliArguments = new ArrayList<String>(Arrays.asList(arguments));
-	    File cli_home;
+        Util.ensureJavaVersion();
+        System.setProperty("apple.awt.UIElement", "true");
+        ArrayList<String> cliArguments = new ArrayList<String>(Arrays.asList(arguments));
+        File cli_home;
         Boolean updateLibs = false;
         Boolean startServer = false;
         Boolean stopServer = false;
         Properties props = new Properties(), userProps = new Properties();
-        if(listContains(cliArguments,"-debug")) {
+        if (listContains(cliArguments, "-debug")) {
             debug = true;
-            listRemoveContaining(cliArguments,"-debug");
-            arguments = removeElement(arguments,"-debug");
+            listRemoveContaining(cliArguments, "-debug");
+            arguments = removeElement(arguments, "-debug");
         }
-		try {
-	        props.load(classLoader.getSystemResourceAsStream("cliloader/cli.properties"));
-		} catch (IOException e) { e.printStackTrace(); }
-        log.debug("initial arguments:"+Arrays.toString(arguments));
-		Map<String,String> config=toMap(arguments);
-		String name = props.getProperty("name") != null ? props.getProperty("name") : "lucee";
-		setName(name);
+        try {
+            props.load(classLoader.getSystemResourceAsStream("cliloader/cli.properties"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        log.debug("initial arguments:" + Arrays.toString(arguments));
+        Map<String, String> config = toMap(arguments);
+        String name = props.getProperty("name") != null ? props.getProperty("name") : "lucee";
+        setName(name);
 
-		// merge any user defined properties
-		File cliPropFile = new File(getJarDir(),getName().toLowerCase() + ".properties");
-        if(!cliPropFile.isFile()) {
-            cliPropFile = new File(getJarDir(),"cli.properties");
+        // merge any user defined properties
+        File cliPropFile = new File(getJarDir(), getName().toLowerCase() + ".properties");
+        if (!cliPropFile.isFile()) {
+            cliPropFile = new File(getJarDir(), "cli.properties");
         }
-        if(cliPropFile.isFile()){
+        if (cliPropFile.isFile()) {
             log.debug("merging properties from " + cliPropFile.getCanonicalPath());
             FileInputStream fi = new FileInputStream(cliPropFile);
             userProps.load(fi);
             fi.close();
-            props = mergeProperties(props,userProps);
+            props = mergeProperties(props, userProps);
         }
 
-        log.debug("cfml.cli.name: "+name);
+        log.debug("cfml.cli.name: " + name);
         setShellPath(props.getProperty("shell") != null ? props.getProperty("shell") : "/cfml/cli/shell.cfm");
 
         cli_home = getCLI_HOME(cliArguments, props, arguments, config);
-        arguments = removeElement(arguments,"-"+getName()+"_home");
+        arguments = removeElement(arguments, "-" + getName() + "_home");
 
-        log.debug("initial cfml.cli.home: "+cli_home);
-		if(!cli_home.exists()) {
-		    System.out.println("Configuring "+name+" home: "+ cli_home + " (change with -"+name+"_home=/path/to/dir)");
-		    cli_home.mkdir();
-		}
-		
-        if(new File(cli_home,"cli.properties").isFile()){
-            FileInputStream fi = new FileInputStream(new File(cli_home,"cli.properties"));
+        log.debug("initial cfml.cli.home: " + cli_home);
+        if (!cli_home.exists()) {
+            System.out.println("Configuring " + name + " home: " + cli_home + " (change with -" + name
+                    + "_home=/path/to/dir)");
+            cli_home.mkdir();
+        }
+
+        if (new File(cli_home, "cli.properties").isFile()) {
+            FileInputStream fi = new FileInputStream(new File(cli_home, "cli.properties"));
             userProps.load(fi);
             fi.close();
-            props = mergeProperties(props,userProps);
+            props = mergeProperties(props, userProps);
         } else {
-//            userProps.put("cfml.cli.home", cli_home.getAbsolutePath());
-//            FileOutputStream fo = new FileOutputStream(new File(cli_home,"cli.properties"));
-//            userProps.store(fo,null);
+            // userProps.put("cfml.cli.home", cli_home.getAbsolutePath());
+            // FileOutputStream fo = new FileOutputStream(new
+            // File(cli_home,"cli.properties"));
+            // userProps.store(fo,null);
         }
 
         // update/overwrite libs
-        if(listContains(cliArguments,"-update")) {
-            System.out.println("updating "+name+" home");
+        if (listContains(cliArguments, "-update")) {
+            System.out.println("updating " + name + " home");
             updateLibs = true;
-            listRemoveContaining(cliArguments,"-update");
-            arguments = removeElement(arguments,"-update");
+            listRemoveContaining(cliArguments, "-update");
+            arguments = removeElement(arguments, "-update");
         }
-        
-		setLibDir(new File(cli_home,"lib").getCanonicalFile());
-		
+
+        setLibDir(new File(cli_home, "lib").getCanonicalFile());
+
         // background
-        if(listContains(cliArguments,"-background")) {
+        if (listContains(cliArguments, "-background")) {
             setBackground(true);
-            arguments = removeElement(arguments,"-background");
+            arguments = removeElement(arguments, "-background");
         } else {
             setBackground(false);
         }
 
-        if(listContains(cliArguments,"-stop")) {
-			stopServer = true;
-			setBackground(false);
-		}
-		
-        if(listContains(cliArguments,"-name")) {
+        if (listContains(cliArguments, "-stop")) {
+            stopServer = true;
+            setBackground(false);
+        }
+
+        if (listContains(cliArguments, "-name")) {
             setServerName(config.get("name"));
             log.debug("Set server name to" + getServerName());
-            arguments = removeElement(arguments,"-name");
-            listRemoveContaining(cliArguments,"-name");
+            arguments = removeElement(arguments, "-name");
+            listRemoveContaining(cliArguments, "-name");
         }
-        
-		if(!updateLibs && (listContains(cliArguments,"-?") || listContains(cliArguments,"-help"))) {
-			System.out.println(props.get("usage").toString().replace("/n",CR));
-			Thread.sleep(1000);
-			System.exit(0);
-		}
-		
-		// lucee libs dir
-		if(listContains(cliArguments,"-lib")) {
-			String strLibs=config.get("lib");
-			setLibDir(new File(strLibs));
-			arguments = removeElementThenAdd(arguments,"-lib=",null);
-			listRemoveContaining(cliArguments,"-lib");
-		}
 
-		if(listContains(cliArguments,"-server")) {
-			startServer=true;
-		}
+        if (!updateLibs && (listContains(cliArguments, "-?") || listContains(cliArguments, "-help"))) {
+            System.out.println(props.get("usage").toString().replace("/n", CR));
+            Thread.sleep(1000);
+            System.exit(0);
+        }
 
-        if(listContains(cliArguments,"-webroot")  && config.get("webroot") != null) {
-            arguments = removeElement(arguments,"-webroot");
+        // lucee libs dir
+        if (listContains(cliArguments, "-lib")) {
+            String strLibs = config.get("lib");
+            setLibDir(new File(strLibs));
+            arguments = removeElementThenAdd(arguments, "-lib=", null);
+            listRemoveContaining(cliArguments, "-lib");
+        }
+
+        if (listContains(cliArguments, "-server")) {
+            startServer = true;
+        }
+
+        if (listContains(cliArguments, "-webroot") && config.get("webroot") != null) {
+            arguments = removeElement(arguments, "-webroot");
             setWebRoot(new File(config.get("webroot")).getCanonicalFile());
         } else {
-            if(getCurrentDir() != null) {
+            if (getCurrentDir() != null) {
                 setWebRoot(new File(getCurrentDir()).getCanonicalFile());
             } else {
                 setWebRoot(new File("./").getCanonicalFile());
             }
         }
-		
-		if(listContains(cliArguments,"-shellpath")) {
-            int shellpathIdx = listIndexOf(cliArguments,"-shellpath");
+
+        if (listContains(cliArguments, "-shellpath")) {
+            int shellpathIdx = listIndexOf(cliArguments, "-shellpath");
             String shellpath = cliArguments.get(shellpathIdx);
-            if(shellpath.indexOf('=') == -1) {
-                setShellPath(cliArguments.get(shellpathIdx+1));
-                cliArguments.remove(shellpathIdx+1);
+            if (shellpath.indexOf('=') == -1) {
+                setShellPath(cliArguments.get(shellpathIdx + 1));
+                cliArguments.remove(shellpathIdx + 1);
                 cliArguments.remove(shellpathIdx);
             } else {
-                setShellPath(shellpath.split("=")[1]);               
+                setShellPath(shellpath.split("=")[1]);
                 cliArguments.remove(shellpathIdx);
             }
-		    arguments = removeElement(arguments,"-shellpath");
-		}
+            arguments = removeElement(arguments, "-shellpath");
+        }
         props.setProperty("cfml.cli.shell", getShellPath());
 
         if(listContains(cliArguments,"-shell") ) {
@@ -187,11 +191,11 @@ public class LoaderCLIMain {
             listRemoveContaining(cliArguments,"-shell");
         }
 
-		File libDir = getLibDir();
-		props.setProperty("cfml.cli.lib", libDir.getAbsolutePath());
-		File cfmlDir = new File(cli_home.getPath()+"/cfml");
-		
-		// clean out any leftover pack files (an issue on windows)
+        File libDir = getLibDir();
+        props.setProperty("cfml.cli.lib", libDir.getAbsolutePath());
+        File cfmlDir = new File(cli_home.getPath() + "/cfml");
+
+        // clean out any leftover pack files (an issue on windows)
         Util.cleanUpUnpacked(libDir);
 
         if (libDir.exists()) {
@@ -208,28 +212,27 @@ public class LoaderCLIMain {
             }
         }
         
-		if (!libDir.exists() || libDir.listFiles(new ExtFilter(".jar")).length < 2 
-				|| updateLibs) {
-			System.out.println("Library path: " + libDir);
-			System.out.println("Initializing libraries -- this will only happen once, and takes a few seconds...");
-			Util.removePreviousLibs(libDir);
-			Util.unzipInteralZip(classLoader, LIB_ZIP_PATH, libDir, debug);
-			Util.unzipInteralZip(classLoader, CFML_ZIP_PATH, cfmlDir, debug);
-			Util.unzipInteralZip(classLoader, ENGINECONF_ZIP_PATH, new File(cli_home.getPath()+"/engine"), debug);
-			Util.copyInternalFile(classLoader, "resource/trayicon.png", new File(libDir,"trayicon.png"));
-			Util.copyInternalFile(classLoader, "resource/traymenu.json", new File(libDir,"traymenu.json"));
-            Util.copyInternalFile(classLoader, VERSION_PROPERTIES_PATH, new File(libDir,"version.properties"));
-			System.out.println("");
-			System.out.println("Libraries initialized");
-			if(updateLibs && arguments.length == 0) {
-				System.out.println("updated " + cli_home + "!");
-				//System.out.println("updated! ctrl-c now or wait a few seconds for exit..");
-				//System.exit(0);
-			}
-			Util.cleanUpUnpacked(libDir);
-		}
-		// check cfml version
-		if(cfmlDir.exists()) {
+        if (!libDir.exists() || libDir.listFiles(new ExtFilter(".jar")).length < 2 || updateLibs) {
+            System.out.println("Library path: " + libDir);
+            System.out.println("Initializing libraries -- this will only happen once, and takes a few seconds...");
+            Util.removePreviousLibs(libDir);
+            Util.unzipInteralZip(classLoader, LIB_ZIP_PATH, libDir, debug);
+            Util.unzipInteralZip(classLoader, CFML_ZIP_PATH, cfmlDir, debug);
+            Util.unzipInteralZip(classLoader, ENGINECONF_ZIP_PATH, new File(cli_home.getPath() + "/engine"), debug);
+            Util.copyInternalFile(classLoader, "resource/trayicon.png", new File(libDir, "trayicon.png"));
+            Util.copyInternalFile(classLoader, "resource/traymenu.json", new File(libDir, "traymenu.json"));
+            Util.copyInternalFile(classLoader, VERSION_PROPERTIES_PATH, new File(libDir, "version.properties"));
+            System.out.println("");
+            System.out.println("Libraries initialized");
+            if (updateLibs && arguments.length == 0) {
+                System.out.println("updated " + cli_home + "!");
+                // System.out.println("updated! ctrl-c now or wait a few seconds for exit..");
+                // System.exit(0);
+            }
+            Util.cleanUpUnpacked(libDir);
+        }
+        // check cfml version
+        if (cfmlDir.exists()) {
             File versionFile = new File(cfmlDir, ".version");
             if (!versionFileMatches(versionFile, CFML_VERSION_PATH)) {
                 String autoUpdate = props.getProperty("cfml.cli.autoupdate");
@@ -241,21 +244,21 @@ public class LoaderCLIMain {
                     log.warn("run '" + name + " -update' to install new CFML");
                 }
             }		    
-		}
-		
-		File configServerDir=new File(libDir.getParentFile(),"engine/cfml/server/cfml-server");
-		File configWebDir=new File(libDir.getParentFile(),"engine/cfml/server/cfml-web/"+getServerName());
-		setLuceeConfigServerDir(configServerDir);
+        }
+
+        File configServerDir = new File(libDir.getParentFile(), "engine/cfml/server/cfml-server");
+        File configWebDir=new File(libDir.getParentFile(),"engine/cfml/server/cfml-web/"+getServerName());
+        setLuceeConfigServerDir(configServerDir);
         setLuceeConfigWebDir(configWebDir);
-		File configCLIServerDir=new File(libDir.getParentFile(),"engine/cfml/cli/cfml-server");
-		File configCLIWebDir=new File(libDir.getParentFile(),"engine/cfml/cli/cfml-web");
-		setLuceeCLIConfigServerDir(configCLIServerDir);
+        File configCLIServerDir=new File(libDir.getParentFile(),"engine/cfml/cli/cfml-server");
+        File configCLIWebDir=new File(libDir.getParentFile(),"engine/cfml/cli/cfml-web");
+        setLuceeCLIConfigServerDir(configCLIServerDir);
         setLuceeCLIConfigWebDir(configCLIWebDir);
-		props.setProperty("cfml.cli.home", cli_home.getAbsolutePath());
-		props.setProperty("cfml.cli.pwd", getCurrentDir());
-		props.setProperty("cfml.config.server", configServerDir.getAbsolutePath());
-		props.setProperty("cfml.config.web", configWebDir.getAbsolutePath());
-		props.setProperty("cfml.server.trayicon", libDir.getAbsolutePath() + "/trayicon.png");
+        props.setProperty("cfml.cli.home", cli_home.getAbsolutePath());
+        props.setProperty("cfml.cli.pwd", getCurrentDir());
+        props.setProperty("cfml.config.server", configServerDir.getAbsolutePath());
+        props.setProperty("cfml.config.web", configWebDir.getAbsolutePath());
+        props.setProperty("cfml.server.trayicon", libDir.getAbsolutePath() + "/trayicon.png");
         props.setProperty("cfml.server.dockicon","");
         for (Iterator<?> iterator = props.keySet().iterator(); iterator.hasNext();) {
             String key = (String) iterator.next();
@@ -275,18 +278,18 @@ public class LoaderCLIMain {
 	}
 	
     private static void execute(ArrayList<String> cliArguments) throws ClassNotFoundException, NoSuchMethodException, SecurityException, IOException {
-	    log.debug("Running in CLI mode");
-	    System.setIn(new NonClosingInputStream(System.in));
-	    String uri = null;
-	    if(new File(getCLI_HOME(),getShellPath()).exists()) {
-	        uri = new File(getCLI_HOME(),getShellPath()).getCanonicalPath();
-	    } else if(new File(getShellPath()).exists()) {
+        log.debug("Running in CLI mode");
+        System.setIn(new NonClosingInputStream(System.in));
+        String uri = null;
+        if(new File(getCLI_HOME(),getShellPath()).exists()) {
+            uri = new File(getCLI_HOME(),getShellPath()).getCanonicalPath();
+        } else if(new File(getShellPath()).exists()) {
             uri = new File(getShellPath()).getCanonicalPath();
-	    } else {
-	        log.error("Could not find shell:"+getShellPath());
-	        exitCode = 1;
-	        return;
-	    }
+        } else {
+            log.error("Could not find shell:"+getShellPath());
+            exitCode = 1;
+            return;
+        }
         if(cliArguments.size() > 1 && cliArguments.contains("execute")) {
             // bypass the shell for running pure CFML files
             int executeIndex = cliArguments.indexOf("execute");
@@ -413,7 +416,7 @@ public class LoaderCLIMain {
             }
         }
         cl.close();
-	}
+    }
 
     static Boolean versionFileMatches(File versionFile, String resourcePath) throws IOException {
         if(versionFile.exists()){
@@ -493,58 +496,61 @@ public class LoaderCLIMain {
         }
         return _classLoader;
     }
-	
-	public static String[] removeElement(String[] input, String deleteMe) {
-		final List<String> list =  new ArrayList<String>();
-		Collections.addAll(list, input);
-		for(String item: input) {
-	        if(item.toLowerCase().startsWith(deleteMe.toLowerCase())) {
-	        	list.remove(item);
-	        }
-		}
-		input = list.toArray(new String[list.size()]);
-		return input;
-	}
-	
-	public static String[] removeElementThenAdd(String[] input, String deleteMe, String[] addList) {
-	    List<String> result = new LinkedList<String>();
-	    for(int x =0; x < input.length; x++) {
-	        if(input[x].startsWith(deleteMe)){
-	            x++;
-	        } else {
-	            result.add(input[x]);
-	        }
-	    }
 
-	    if(addList != null && addList.length > 0)
-		    for(String item : addList)
-		    		result.add(item);
-	    
-	    return result.toArray(input);
-	}
+    public static String[] removeElement(String[] input, String deleteMe) {
+        final List<String> list = new ArrayList<String>();
+        Collections.addAll(list, input);
+        for (String item : input) {
+            if (item.toLowerCase().startsWith(deleteMe.toLowerCase())) {
+                list.remove(item);
+            }
+        }
+        input = list.toArray(new String[list.size()]);
+        return input;
+    }
 
+    public static String[] removeElementThenAdd(String[] input, String deleteMe, String[] addList) {
+        List<String> result = new LinkedList<String>();
+        for (int x = 0; x < input.length; x++) {
+            if (input[x].startsWith(deleteMe)) {
+                x++;
+            } else {
+                result.add(input[x]);
+            }
+        }
 
-	public static class ExtFilter implements FilenameFilter {
-		private String ext;
-		public ExtFilter(String extension) {
-			ext = extension;
-		}
-		public boolean accept(File dir, String name) {
-			return name.toLowerCase().endsWith(ext);
-		}
-	}
-	
-	public static class PrefixFilter implements FilenameFilter {
-	    private String prefix;
-	    public PrefixFilter(String prefix) {
-	        this.prefix = prefix;
-	    }
-	    public boolean accept(File dir, String name) {
-	        return name.toLowerCase().startsWith(prefix);
-	    }
-	}
-	
-	public static String arrayToList(String[] s, String separator) {  
+        if (addList != null && addList.length > 0)
+            for (String item : addList)
+                result.add(item);
+
+        return result.toArray(input);
+    }
+
+    public static class ExtFilter implements FilenameFilter {
+        private String ext;
+
+        public ExtFilter(String extension) {
+            ext = extension;
+        }
+
+        public boolean accept(File dir, String name) {
+            return name.toLowerCase().endsWith(ext);
+        }
+    }
+
+    public static class PrefixFilter implements FilenameFilter {
+        private String prefix;
+
+        public PrefixFilter(String prefix) {
+            this.prefix = prefix;
+        }
+
+        public boolean accept(File dir, String name) {
+            return name.toLowerCase().startsWith(prefix);
+        }
+    }
+
+    public static String arrayToList(String[] s, String separator) {
         String result = "";
         if (s.length > 0) {
             result = s[0];
@@ -553,61 +559,64 @@ public class LoaderCLIMain {
             }
         }
         return result;
-	}
+    }
 	
-	public static boolean listContains(ArrayList<String> argList, String text) {  
-	    // check for args with "--" too
-	    if(listIndexOf(argList,text) != -1 || listIndexOf(argList,"-"+text) != -1)
-	        return true;
-		return false;
-	}
-	
-	public static int listIndexOf(ArrayList<String> argList, String text) {  
-	    int index = 0;
-	    for(String item : argList) {
-	        if(item.startsWith(text) || item.startsWith("-"+text)) {
-	            return index;
-	        }
-	        index++;
-	    }
-	    return -1;
-	}
-	
-	public static void listRemoveContaining(ArrayList<String> argList, String text) {
-		for (Iterator<String> it = argList.iterator(); it.hasNext();) {
-			String str = it.next();
-			// check for "--" too
-			if (str.toLowerCase().startsWith(text.toLowerCase()) || str.toLowerCase().startsWith('-'+text.toLowerCase())) {
-				it.remove();
-			}
-		}
-	}
-	
-	private static Map<String, String> toMap(String[] args) {
-		int index;
-		Map<String, String> config=new HashMap<String, String>();
-		String raw,key,value;
-		if(args!=null)for(int i=0;i<args.length;i++){
-			raw=args[i].trim();
-			if(raw.length() == 0) continue;
-			if(raw.startsWith("-"))raw=raw.substring(1).trim();
-			index=raw.indexOf('=');
-			if(index==-1) {
-				key=raw;
-				value="";
-			}
-			else {
-				key=raw.substring(0,index).trim();
-				value=raw.substring(index+1).trim();
-			}
-			config.put(key.toLowerCase(), value);
-		}
-		return config;
-	}
+    public static boolean listContains(ArrayList<String> argList, String text) {
+        // check for args with "--" too
+        if (listIndexOf(argList, text) != -1 || listIndexOf(argList, "-" + text) != -1)
+            return true;
+        return false;
+    }
 
-	public static String getPathRoot(String string) {
-		return string.replaceAll("^([^\\\\//]*?[\\\\//]).*?$", "$1");
-	}
+    public static int listIndexOf(ArrayList<String> argList, String text) {
+        int index = 0;
+        for (String item : argList) {
+            if (item.startsWith(text) || item.startsWith("-" + text)) {
+                return index;
+            }
+            index++;
+        }
+        return -1;
+    }
+
+    public static void listRemoveContaining(ArrayList<String> argList, String text) {
+        for (Iterator<String> it = argList.iterator(); it.hasNext();) {
+            String str = it.next();
+            // check for "--" too
+            if (str.toLowerCase().startsWith(text.toLowerCase())
+                    || str.toLowerCase().startsWith('-' + text.toLowerCase())) {
+                it.remove();
+            }
+        }
+    }
+
+    private static Map<String, String> toMap(String[] args) {
+        int index;
+        Map<String, String> config = new HashMap<String, String>();
+        String raw, key, value;
+        if (args != null)
+            for (int i = 0; i < args.length; i++) {
+                raw = args[i].trim();
+                if (raw.length() == 0)
+                    continue;
+                if (raw.startsWith("-"))
+                    raw = raw.substring(1).trim();
+                index = raw.indexOf('=');
+                if (index == -1) {
+                    key = raw;
+                    value = "";
+                } else {
+                    key = raw.substring(0, index).trim();
+                    value = raw.substring(index + 1).trim();
+                }
+                config.put(key.toLowerCase(), value);
+            }
+        return config;
+    }
+
+    public static String getPathRoot(String string) {
+        return string.replaceAll("^([^\\\\//]*?[\\\\//]).*?$", "$1");
+    }
 
     private static String getCurrentDir() {
         return System.getProperty("user.dir");
