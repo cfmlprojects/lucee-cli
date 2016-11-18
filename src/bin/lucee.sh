@@ -57,5 +57,5 @@ then
   java="$JRE/bin/java"
 fi
 
-exec "$java" $JAVA_OPTS -jar ${jar.name} "$@"
+exec "$java" $JAVA_OPTS -jar lucee "$@"
 exit 0
